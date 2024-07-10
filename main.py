@@ -8,10 +8,19 @@ from omegaconf import DictConfig
 import wandb
 from termcolor import cprint
 from tqdm import tqdm
+from torchvision import transforms
 
 from src.datasets import ThingsMEGDataset
 from src.models import BasicConvClassifier
 from src.utils import set_seed
+
+class gcn():
+    def __init__(self):
+        pass
+
+    def __call__(self, x):
+        mean = torch.mean(x[:len(x)//10])
+        return x - mean
 
 
 @hydra.main(version_base=None, config_path="configs", config_name="config")
@@ -25,16 +34,21 @@ def run(args: DictConfig):
     # ------------------
     #    Dataloader
     # ------------------
-    loader_args = {"batch_size": args.batch_size, "num_workers": args.num_workers}
     
-    train_set = ThingsMEGDataset("train", args.data_dir)
+    GCN = gcn()
+    transform = transforms.Compose([GCN])
+    loader_args = {"batch_size": args.batch_size, "num_workers": args.num_workers}
+
+    print("Loading data...")
+    train_set = ThingsMEGDataset("train", args.data_dir, transform=transform)
     train_loader = torch.utils.data.DataLoader(train_set, shuffle=True, **loader_args)
-    val_set = ThingsMEGDataset("val", args.data_dir)
+    val_set = ThingsMEGDataset("val", args.data_dir,transform=transform)
     val_loader = torch.utils.data.DataLoader(val_set, shuffle=False, **loader_args)
     test_set = ThingsMEGDataset("test", args.data_dir)
     test_loader = torch.utils.data.DataLoader(
         test_set, shuffle=False, batch_size=args.batch_size, num_workers=args.num_workers
     )
+    print("Data loaded.")
 
     # ------------------
     #       Model

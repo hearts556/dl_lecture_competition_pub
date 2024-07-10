@@ -22,6 +22,12 @@ class BasicConvClassifier(nn.Module):
         self.head = nn.Sequential(
             nn.AdaptiveAvgPool1d(1),
             Rearrange("b d 1 -> b d"),
+            nn.Linear(hid_dim, hid_dim),
+            nn.LayerNorm(hid_dim),
+            nn.Dropout(0.5),
+            nn.Linear(hid_dim, hid_dim),
+            nn.LayerNorm(hid_dim),
+            nn.Dropout(0.5),
             nn.Linear(hid_dim, num_classes),
         )
 
@@ -43,21 +49,29 @@ class ConvBlock(nn.Module):
         in_dim,
         out_dim,
         kernel_size: int = 3,
-        p_drop: float = 0.1,
+        p_drop: float = 0.5,
     ) -> None:
         super().__init__()
         
         self.in_dim = in_dim
         self.out_dim = out_dim
 
+        print(f"ConvBlock: {in_dim} -> {out_dim}")
+
         self.conv0 = nn.Conv1d(in_dim, out_dim, kernel_size, padding="same")
         self.conv1 = nn.Conv1d(out_dim, out_dim, kernel_size, padding="same")
-        # self.conv2 = nn.Conv1d(out_dim, out_dim, kernel_size) # , padding="same")
+        self.conv2 = nn.Conv1d(out_dim, out_dim, kernel_size, padding="same")
+
+        self.pooling = nn.MaxPool1d(2)
         
         self.batchnorm0 = nn.BatchNorm1d(num_features=out_dim)
         self.batchnorm1 = nn.BatchNorm1d(num_features=out_dim)
+        self.batchnorm2 = nn.BatchNorm1d(num_features=out_dim)
 
-        self.dropout = nn.Dropout(p_drop)
+        self.dropout1 = nn.Dropout(p_drop)
+        self.dropout2 = nn.Dropout(p_drop)
+
+        self.linear = nn.Linear(out_dim * kernel_size, out_dim)
 
     def forward(self, X: torch.Tensor) -> torch.Tensor:
         if self.in_dim == self.out_dim:
@@ -67,10 +81,10 @@ class ConvBlock(nn.Module):
 
         X = F.gelu(self.batchnorm0(X))
 
+        X = self.dropout1(X)
+
         X = self.conv1(X) + X  # skip connection
         X = F.gelu(self.batchnorm1(X))
 
-        # X = self.conv2(X)
-        # X = F.glu(X, dim=-2)
 
-        return self.dropout(X)
+        return self.dropout2(X)

@@ -6,8 +6,9 @@ from termcolor import cprint
 
 
 class ThingsMEGDataset(torch.utils.data.Dataset):
-    def __init__(self, split: str, data_dir: str = "data") -> None:
+    def __init__(self, split: str, data_dir: str = "data",transform=None) -> None:
         super().__init__()
+        self.transform = transform
         
         assert split in ["train", "val", "test"], f"Invalid split: {split}"
         self.split = split
@@ -25,9 +26,12 @@ class ThingsMEGDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, i):
         if hasattr(self, "y"):
+            if self.transform:
+                return self.transform(self.X[i]), self.y[i], self.subject_idxs[i]
             return self.X[i], self.y[i], self.subject_idxs[i]
         else:
             return self.X[i], self.subject_idxs[i]
+        
         
     @property
     def num_channels(self) -> int:
