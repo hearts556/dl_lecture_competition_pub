@@ -9,18 +9,12 @@ import wandb
 from termcolor import cprint
 from tqdm import tqdm
 from torchvision import transforms
+import torch.nn as nn
 
 from src.datasets import ThingsMEGDataset
 from src.models import TransFormer
-from src.utils import set_seed
+from src.utils import set_seed,my_trans,LabelSmoothingCrossEntropy,ZCAWhitening,white_noise
 
-class my_trans():
-    def __init__(self):
-        pass
-
-    def __call__(self, x):
-        mean = torch.mean(x[:len(x)//10])
-        return x - mean
 
 
 @hydra.main(version_base=None, config_path="configs", config_name="config")
@@ -36,13 +30,14 @@ def run(args: DictConfig):
     # ------------------
     
     MY_TRANS = my_trans()
-    transform = transforms.Compose([MY_TRANS])
+    zca = ZCAWhitening()
+    transform = transforms.Compose([zca])
     loader_args = {"batch_size": args.batch_size, "num_workers": args.num_workers}
 
     print("Loading data...")
-    train_set = ThingsMEGDataset("train", args.data_dir, transform=transform)
+    train_set = ThingsMEGDataset("train", args.data_dir, )
     train_loader = torch.utils.data.DataLoader(train_set, shuffle=True, **loader_args)
-    val_set = ThingsMEGDataset("val", args.data_dir,transform=transform)
+    val_set = ThingsMEGDataset("val", args.data_dir,)
     val_loader = torch.utils.data.DataLoader(val_set, shuffle=False, **loader_args)
     test_set = ThingsMEGDataset("test", args.data_dir)
     test_loader = torch.utils.data.DataLoader(
@@ -69,6 +64,7 @@ def run(args: DictConfig):
     accuracy = Accuracy(
         task="multiclass", num_classes=train_set.num_classes, top_k=10
     ).to(args.device)
+    labelsmoothing_cross_entropy = LabelSmoothingCrossEntropy()
       
     for epoch in range(args.epochs):
         print(f"Epoch {epoch+1}/{args.epochs}")
@@ -81,7 +77,7 @@ def run(args: DictConfig):
 
             y_pred = model(X)
             
-            loss = F.cross_entropy(y_pred, y)
+            loss = labelsmoothing_cross_entropy(y_pred, y)
             train_loss.append(loss.item())
             
             optimizer.zero_grad()
@@ -98,7 +94,7 @@ def run(args: DictConfig):
             with torch.no_grad():
                 y_pred = model(X)
             
-            val_loss.append(F.cross_entropy(y_pred, y).item())
+            val_loss.append(labelsmoothing_cross_entropy(y_pred, y).item())
             val_acc.append(accuracy(y_pred, y).item())
 
         print(f"Epoch {epoch+1}/{args.epochs} | train loss: {np.mean(train_loss):.3f} | train acc: {np.mean(train_acc):.3f} | val loss: {np.mean(val_loss):.3f} | val acc: {np.mean(val_acc):.3f}")

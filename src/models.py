@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from einops import repeat
 from einops.layers.torch import Rearrange
+import numpy as np
 
 '''
 class BasicConvClassifier(nn.Module):
@@ -145,7 +146,7 @@ class MultiHeadAttention(nn.Module):
         self.split_into_heads = Rearrange("b n (h d) -> b h n d", h=self.n_heads)
 
         self.softmax  = nn.Softmax(dim=-1)
-        self.dropout = nn.Dropout(0.3)
+        self.dropout = nn.Dropout(0.1)
 
         self.concat = Rearrange("b h n d -> b n (h d)", h = self.n_heads)
 
@@ -169,7 +170,7 @@ class MultiHeadAttention(nn.Module):
 
 
 class MLP(nn.Module):
-    def __init__(self, dim, hidden_dim, dropout=0.1):
+    def __init__(self, dim, hidden_dim, dropout=0.5):
         super().__init__()
         self.net = nn.Sequential(
             nn.Linear(dim, hidden_dim),
@@ -206,7 +207,7 @@ class MLPHead(nn.Module):
         self.net = nn.Sequential(
             nn.LayerNorm(dim),
             nn.Linear(dim, out_dim),
-            #nn.Dropout(0.1)
+            #nn.Dropout(0.3)
         )
     
     def forward(self, x):
@@ -215,7 +216,7 @@ class MLPHead(nn.Module):
 
 
 class TransFormer(nn.Module):
-    def __init__(self, num_classes, seq_len, channels, patch_size=16, dim=128, depth=4, n_heads=1, hidden_dim=128):
+    def __init__(self, num_classes, seq_len, channels, patch_size=16, dim=64, depth=4, n_heads=4, hidden_dim=128):
         super().__init__()
 
         n_pathes = seq_len // patch_size
@@ -237,3 +238,14 @@ class TransFormer(nn.Module):
         x = self.mlp_head(x)
 
         return x
+
+
+class multisample_dropout():
+    def __init__(self, dropout, hidden_dim):
+        self.high_dropout = torch.nn.Dropout(dropout)
+        self.classifier = torch.nn.Linear(hidden_dim * 2, 2)
+    def forward(self, out):
+        return torch.mean(torch.stack([
+            self.classifier(self.high_dropout(p))
+            for p in np.linspace(0.1,0.5, 5)
+        ], dim=0), dim=0)
