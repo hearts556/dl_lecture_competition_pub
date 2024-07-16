@@ -11,10 +11,10 @@ from tqdm import tqdm
 from torchvision import transforms
 
 from src.datasets import ThingsMEGDataset
-from src.models import BasicConvClassifier
+from src.models import TransFormer
 from src.utils import set_seed
 
-class gcn():
+class my_trans():
     def __init__(self):
         pass
 
@@ -35,8 +35,8 @@ def run(args: DictConfig):
     #    Dataloader
     # ------------------
     
-    GCN = gcn()
-    transform = transforms.Compose([GCN])
+    MY_TRANS = my_trans()
+    transform = transforms.Compose([MY_TRANS])
     loader_args = {"batch_size": args.batch_size, "num_workers": args.num_workers}
 
     print("Loading data...")
@@ -53,8 +53,8 @@ def run(args: DictConfig):
     # ------------------
     #       Model
     # ------------------
-    model = BasicConvClassifier(
-        train_set.num_classes, train_set.seq_len, train_set.num_channels
+    model = TransFormer(
+        train_set.num_classes, train_set.seq_len, train_set.num_channels,patch_size = 281
     ).to(args.device)
 
     # ------------------

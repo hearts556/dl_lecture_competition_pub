@@ -3,6 +3,7 @@ test/
 !data/.gitkeep
 main.ipynb
 showdata.py
+model_test.py
 
 outputs/
 preprocess.py
